@@ -24,6 +24,7 @@ One needs an available instance of Automatic1111's webui running with an `--api`
 To run it locally in parallel on the same machine, specify custom `--listen-port` for either Auto1111's or ooba's webUIs.  
 
 ## Features:
+- Dynamic injection of content into SD prompt, upon detection of a request for character selfie or upon detection of preset string
 - API detection (press enter in the API box)  
 - VRAM management (model shuffling)  
 - Three different operation modes (manual, interactive, always-on)  
