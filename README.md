@@ -8,7 +8,7 @@ This extension greatly improves usability of the sd_api_extension in chat mode, 
 
 ## Installation
 
-To install, in a command line, navigate to your text-generation-webui folder, then enter the extensions folder and then `git pull https://github.com/GuizzyQC/sd_api_pictures_tag_injection.git`
+To install, in a command line, navigate to your text-generation-webui folder, then enter the extensions folder and then `git clone https://github.com/GuizzyQC/sd_api_pictures_tag_injection.git`
 
 ## Usage
 
