@@ -85,7 +85,6 @@ samplers = ['DDIM', 'DPM++ 2M Karras']  # TODO: get the availible samplers with 
 SD_models = ['NeverEndingDream']  # TODO: get with http://{address}}/sdapi/v1/sd-models and allow user to select
 initial_string = ""
 
-streaming_state = shared.args.no_stream  # remember if chat streaming was enabled
 picture_response = False  # specifies if the next model response should appear as a picture
 
 
@@ -100,6 +99,11 @@ def add_translations(description,triggered_array,tpatterns):
                 triggered_array[i] = 1
         i = i + 1
     return triggered_array
+
+def state_modifier(state):
+    if picture_response:
+        state['stream'] = False
+    return state
 
 def remove_surrounded_chars(string):
     # this expression matches to 'as few symbols as possible (0 upwards) between any asterisks' OR
@@ -313,14 +317,13 @@ def bot_prefix_modifier(string):
 
 
 def toggle_generation(*args):
-    global picture_response, shared, streaming_state
+    global picture_response, shared
 
     if not args:
         picture_response = not picture_response
     else:
         picture_response = args[0]
 
-    shared.args.no_stream = True if picture_response else streaming_state  # Disable streaming cause otherwise the SD-generated picture would return as a dud
     shared.processing_message = "*Is sending a picture...*" if picture_response else "*Is typing...*"
 
 
