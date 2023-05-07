@@ -118,24 +118,36 @@ def triggers_are_in(string):
     # (?aims) are regex parser flags
     return bool(re.search('(?aims)(send|mail|message|me)\\b.+?\\b(image|pic(ture)?|photo|snap(shot)?|selfie|meme)s?\\b', string))
 
-def request_generation(case,string):
-    global characterfocus
+def request_generation(case, string):
+    global params, characterfocus
+
     if case == 1:
-        toggle_generation(True)
-        characterfocus = True
-        string = string.replace("yourself","you")
-        after_you = string.split("you", 1)[1] # subdivide the string once by the first 'you' instance and get what's coming after it
-        if after_you != '':
-            string = "Describe what you are currently wearing, your environment and yourself performing the following action: " + after_you.strip()
+        if "describe" in string:
+            if "yourself" in string or "you" in string:
+                toggle_generation(True)
+                characterfocus = True
+                string = string.replace("yourself", "you")
+                after_you = string.split("you", 1)[1].strip()
+                if after_you:
+                    string = "Describe what you are currently wearing, your environment, and yourself performing the following action: " + after_you
+                else:
+                    string = "Describe what you are currently wearing, your environment, and yourself."
+            elif params['mode'] == 1 and triggers_are_in(string):
+                toggle_generation(True)
+                string = string.lower()
+                context = string.split(" of ")[0].strip() # extract the context before the subject
+                if "of" in string:
+                    subject = string.split('of', 1)[1].strip()
+                    string = f"Please provide a detailed and vivid description of {subject} {context}"
+                else:
+                    string = f"Please provide a detailed description of your appearance, your surroundings, and what you are doing right now {context}."
         else:
-            string = "Describe what you are currently wearing, your environment and yourself."
+            toggle_generation(True)
+            subject = string.split('of', 1)[1]  # subdivide the string once by the first 'of' instance and get what's coming after it
+            string = "Please provide a detailed and vivid description of " + subject.strip()
     elif case == 2:
         toggle_generation(True)
-        subject = string.split('of', 1)[1]  # subdivide the string once by the first 'of' instance and get what's coming after it
-        string = "Please provide a detailed and vivid description of " + subject.strip()
-    elif case == 3:
-        toggle_generation(True)
-        string = "Please provide a detailed description of your appearance, your surroundings and what you are doing right now."
+        string = "Please provide a detailed description of your appearance, your surroundings, and what you are doing right now."
     return string
 
 def string_evaluation(string):
