@@ -126,16 +126,16 @@ def request_generation(case,string):
         string = string.replace("yourself","you")
         after_you = string.split("you", 1)[1] # subdivide the string once by the first 'you' instance and get what's coming after it
         if after_you != '':
-            string = "Describe what you are currently wearing, your environment and yourself performing the following action: " + after_you.strip()
+            string = "Describe in vivid detail as if you were describing to a blind person your current clothing and the environment. Describe in vivid detail as if you were describing to a blind person yourself performing the following action: " + after_you.strip()
         else:
-            string = "Describe what you are currently wearing, your environment and yourself."
+            string = "Describe in vivid detail as if you were describing to a blind person your current clothing and the environment. Describe yourself in vivid detail as if you were describing to a blind person."
     elif case == 2:
         toggle_generation(True)
         subject = string.split('of', 1)[1]  # subdivide the string once by the first 'of' instance and get what's coming after it
-        string = "Please provide a detailed and vivid description of " + subject.strip()
+        string = "Describe in vivid detail as if you were describing to a blind person the following: " + subject.strip()
     elif case == 3:
         toggle_generation(True)
-        string = "Please provide a detailed description of your appearance, your surroundings and what you are doing right now."
+        string = "Describe in vivid detail as if you were describing to a blind person your appearance, your current state of clothing, your surroundings and what you are doing right now."
     return string
 
 def string_evaluation(string):
