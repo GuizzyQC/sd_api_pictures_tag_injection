@@ -39,10 +39,24 @@ params = {
     'secondary_prompt': False,
     'translations': False,
     'secondary_negative_prompt' : '',
+    'language' : 'english',
     'secondary_positive_prompt' : ''
 
 }
 
+strings = {
+    'language': '',
+    'triggers': '',
+    'you': '',
+    'of': '',
+    'after_you': '',
+    'just_you': '',
+    'of_subject': '',
+    'of_nothing': '',
+    'subjects': '',
+    'no_viable': '',
+    'sent': ''
+}
 
 def give_VRAM_priority(actor):
     global shared, params
@@ -88,6 +102,21 @@ initial_string = ""
 streaming_state = shared.args.no_stream  # remember if chat streaming was enabled
 picture_response = False  # specifies if the next model response should appear as a picture
 
+def update_strings():
+    global strings
+    file_contents = open("extensions/sd_api_pictures_tag_injection/languages.yaml", 'r', encoding='utf-8').read()
+    data = yaml.safe_load(file_contents)
+    strings['triggers'] = data[params['language']]['triggers']
+    strings['you'] = data[params['language']]['you']
+    strings['of'] = data[params['language']]['of']
+    strings['after_you'] = data[params['language']]['after_you']
+    strings['just_you'] = data[params['language']]['just_you']
+    strings['of_subject'] = data[params['language']]['of_subject']
+    strings['of_nothing'] = data[params['language']]['of_nothing']
+    strings['subjects'] = data[params['language']]['subjects']
+    strings['no_viable'] = data[params['language']]['no_viable']
+    strings['sent'] = data[params['language']]['sent']
+    strings['language'] = params['language']
 
 def add_translations(description,triggered_array,tpatterns):
     global positive_suffix, negative_suffix
@@ -112,39 +141,40 @@ def triggers_are_in(string):
     # regex searches for send|main|message|me (at the end of the word) followed by
     # a whole word of image|pic|picture|photo|snap|snapshot|selfie|meme(s),
     # (?aims) are regex parser flags
-    return bool(re.search('(?aims)(send|mail|message|me)\\b.+?\\b(image|pic(ture)?|photo|snap(shot)?|selfie|meme)s?\\b', string))
+    return bool(re.search(strings['triggers'], string))
 
 def request_generation(case,string):
     global characterfocus
     if case == 1:
         toggle_generation(True)
         characterfocus = True
-        string = string.replace("yourself","you")
-        after_you = string.split("you", 1)[1] # subdivide the string once by the first 'you' instance and get what's coming after it
+        for o in strings['subjects']:
+            if o != strings['you']:
+                string = string.replace(o,strings['you'])
+        after_you = string.split(strings['you'], 1)[1] # subdivide the string once by the first 'you' instance and get what's coming after it
         if after_you != '':
-            string = "Describe what you are currently wearing, your environment and yourself performing the following action: " + after_you.strip()
+            string = strings['after_you'] + after_you.strip()
         else:
-            string = "Describe what you are currently wearing, your environment and yourself."
+            string = strings['just_you']
     elif case == 2:
         toggle_generation(True)
         subject = string.split('of', 1)[1]  # subdivide the string once by the first 'of' instance and get what's coming after it
-        string = "Please provide a detailed and vivid description of " + subject.strip()
+        string = strings['of_subject'] + subject.strip()
     elif case == 3:
         toggle_generation(True)
-        string = "Please provide a detailed description of your appearance, your surroundings and what you are doing right now."
+        string = strings['of_nothing']
     return string
 
 def string_evaluation(string):
     global characterfocus
     orig_string = string
     input_type = 0
-    subjects = ['yourself', 'you']
     characterfocus = False
     if triggers_are_in(string):  # check for trigger words for generation
         string = string.lower()
-        if "of" in string:
-            if any(target in string for target in subjects): # the focus of the image should be on the sending character
-                input_type = 1 
+        if strings['of'] in string:
+            if any(target in string for target in strings['subjects']): # the focus of the image should be on the sending character
+                input_type = 1
             else:
                 input_type = 2
         else:
@@ -160,6 +190,8 @@ def input_modifier(string):
 
     global params, initial_string
     initial_string = string
+    if params['language'] != strings['language']
+        update_strings()
     if params['mode'] == 1:  # For immersive/interactive mode, send to string evaluation
             return string_evaluation(string)
     if params['mode'] == 2:
@@ -189,7 +221,7 @@ def create_suffix():
             if found_file:
                 break
         file_contents = open(filepath, 'r', encoding='utf-8').read()
-        data = json.loads(file_contents) if extension == "json" else yaml.safe_load(file_contents)
+        data = json.loads(file_contents) if extension == "json" else yaml.safe_load(file_contents) 
 
     if params['secondary_prompt']:
         positive_suffix = params['secondary_positive_prompt']
@@ -287,13 +319,12 @@ def output_modifier(string):
     string = string.strip()
 
     if string == '':
-        string = 'no viable description in reply, try regenerating'
-        return string
+        return strings['no_viable']
 
     text = ""
     if (params['mode'] < 2):
         toggle_generation(False)
-        text = f'*Sends a picture which portrays: “{string}”*'
+        text = f'*' + strings['sent'] + "{string}" +'*'
     else:
         text = string
 
@@ -349,15 +380,29 @@ def SD_api_address_update(address):
 
     return gr.Textbox.update(label=msg)
 
+
+def get_languages():
+    global loaded_languages
+    file_contents = open("extensions/sd_api_pictures_tag_injection/languages.yaml", 'r', encoding='utf-8').read()
+    data = yaml.safe_load(file_contents)
+    loaded_languages = [0] * len(data['languages'])
+    for i in loaded_languages:
+        loaded_languages[i] = data['languages'][i]['language']
+
+
 def ui():
 
     # Gradio elements
     # gr.Markdown('### Stable Diffusion API Pictures') # Currently the name of extension is shown as the title
     with gr.Accordion("Parameters", open=True):
         with gr.Row():
-            address = gr.Textbox(placeholder=params['address'], value=params['address'], label='Auto1111\'s WebUI address')
-            modes_list = ["Manual", "Immersive/Interactive", "Picturebook/Adventure"]
-            mode = gr.Dropdown(modes_list, value=modes_list[params['mode']], label="Mode of operation", type="index")
+            with gr.Column(scale=1, min_width=300):
+                address = gr.Textbox(placeholder=params['address'], value=params['address'], label='Auto1111\'s WebUI address')
+                languages = gr.Dropdown(loaded_languages, value=[params['language'], label="Language")
+                update_languages = gr.Button("Refresh")
+            with gr.Column(scale=1, min_width=300):
+                modes_list = ["Manual", "Immersive/Interactive", "Picturebook/Adventure"]
+                mode = gr.Dropdown(modes_list, value=modes_list[params['mode']], label="Mode of operation", type="index")
             with gr.Column(scale=1, min_width=300):
                 manage_VRAM = gr.Checkbox(value=params['manage_VRAM'], label='Manage VRAM')
                 save_img = gr.Checkbox(value=params['save_img'], label='Keep original images and use them in chat')
@@ -422,6 +467,9 @@ def ui():
     steps.change(lambda x: params.update({"steps": x}), steps, None)
     seed.change(lambda x: params.update({"seed": x}), seed, None)
     cfg_scale.change(lambda x: params.update({"cfg_scale": x}), cfg_scale, None)
+
+    languages.select(lambda x: params.update({"languages": x}), languages, None)
+    update_languages.click(get_languages, [], languages)
 
     force_pic.click(lambda x: toggle_generation(True), inputs=force_pic, outputs=None)
     suppr_pic.click(lambda x: toggle_generation(False), inputs=suppr_pic, outputs=None)

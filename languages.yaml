@@ -1,0 +1,25 @@
+languages:
+    english:
+        language: 'english'
+        triggers: '(?aims)(send|mail|message|me)\\b.+?\\b(image|pic(ture)?|photo|snap(shot)?|selfie|meme)s?\\b'
+        you: 'you'
+        of: 'of'
+        after_you: 'Describe what you are currently wearing, your environment and yourself performing the following action: '
+        just_you: 'Describe what you are currently wearing, your environment and yourself.'
+        of_subject: 'Please provide a detailed and vivid description of '
+        of_nothing: 'Please provide a detailed description of your appearance, your surroundings and what you are doing right now.'
+        subjects: ['yourself', 'you']
+        no_viable: 'no viable description in reply, try regenerating'
+        sent: 'Sends a picture which portrays: '
+    french:
+        language: 'french'
+        triggers: '(?aims)(envoie|mail|message|moi)\\b.+?\\b(image|pic(ture)?|photo|snap(shot)?|selfie|meme)s?\\b'
+        you: 'toi'
+        of: 'de'
+        after_you: 'Décrit ce que tu porte, ton environment et toi-même performant les actions suivantes: '
+        just_you: 'Décrit ce que tu porte, ton environment et toi-même.'
+        of_subject: 'Donne une description détaillée de '
+        of_nothing: 'Donne une description détaillée de ton apparence, ton enviornment et ce que tu fais en ce moment.'
+        subjects: ['toi']
+        no_viable: 'Pas de description viable dans la réponse, veuillez réessayer.'
+        sent: 'Envoie une image qui montre: '
