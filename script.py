@@ -38,6 +38,11 @@ params = {
     'cfg_scale': 7,
     'secondary_prompt': False,
     'translations': False,
+    'checkpoint_prompt' : False,
+    'sd_checkpoint' : ' ',
+    'checkpoint_list' : [" "],
+    'checkpoint_positive_prompt' : '',
+    'checkpoint_negative_prompt' : '',
     'secondary_negative_prompt' : '',
     'secondary_positive_prompt' : ''
 
@@ -116,7 +121,7 @@ def triggers_are_in(string):
     # regex searches for send|main|message|me (at the end of the word) followed by
     # a whole word of image|pic|picture|photo|snap|snapshot|selfie|meme(s),
     # (?aims) are regex parser flags
-    return bool(re.search('(?aims)(send|mail|message|me)\\b.+?\\b(image|pic(ture)?|photo|snap(shot)?|selfie|meme)s?\\b', string))
+    return bool(re.search('(?aims)(send|mail|message|me)\\b.+?\\b(image|pic(ture)?|photo|polaroid|snap(shot)?|selfie|meme)s?\\b', string))
 
 def request_generation(case,string):
     global characterfocus
@@ -198,6 +203,13 @@ def create_suffix():
     if params['secondary_prompt']:
         positive_suffix = params['secondary_positive_prompt']
         negative_suffix = params['secondary_negative_prompt']
+#    if params['checkpoint_prompt']:
+#        if params['secondary_prompt']:
+#            positive_suffix = positive_suffix + ", " + params['checkpoint_positive_prompt']
+#            negative_suffix = negative_suffix + ", " + params['checkpoint_negative_prompt']
+#        else:
+#            positive_suffix = params['checkpoint_positive_prompt']
+#            negative_suffix = params['checkpoint_negative_prompt']
     if characterfocus and shared.character != 'None':
         positive_suffix = data['sd_tags_positive'] if 'sd_tags_positive' in data else "" 
         negative_suffix = data['sd_tags_negative'] if 'sd_tags_negative' in data else ""
@@ -352,6 +364,36 @@ def SD_api_address_update(address):
 
     return gr.Textbox.update(label=msg)
 
+def get_checkpoints():
+    global params
+
+    models = requests.get(url=f'{params["address"]}/sdapi/v1/sd-models')
+    options = requests.get(url=f'{params["address"]}/sdapi/v1/options')
+    options_json = options.json()
+    params['sd_checkpoint'] = options_json['sd_model_checkpoint']
+    list = models.json()
+    params['checkpoint_list'] = [0] * len(list)
+    i = 0
+    for result in list:
+        params['checkpoint_list'][i] = result['title']
+        i = i + 1
+
+def load_checkpoint(checkpoint):
+    global params
+    params['checkpoint_positive_prompt'] = ""
+    params['checkpoint_negative_prompt'] = ""
+
+    payload = {
+        "sd_model_checkpoint": checkpoint
+    }
+
+    requests.post(url=f'{params["address"]}/sdapi/v1/options', json=payload)
+#    prompts = json.loads(open(Path(f'extensions/sd_api_pictures_tag_injection/checkpoints.json'), 'r', encoding='utf-8').read())
+#    for pair in prompts['pairs']:
+#        if pair['name'] == params['sd_checkpoint']:
+#            params['checkpoint_positive_prompt'] = pair['positive_prompt']
+#            params['checkpoint_negative_prompt'] = pair['negative_prompt']
+
 def ui():
 
     # Gradio elements
@@ -369,6 +411,10 @@ def ui():
 
             force_pic = gr.Button("Force the picture response")
             suppr_pic = gr.Button("Suppress the picture response")
+        with gr.Row():
+            checkpoint = gr.Dropdown(modes_list, value=params['sd_checkpoint'], label="Checkpoint", type="value")
+#            checkpoint_prompt = gr.Checkbox(value=params['checkpoint_prompt'], label='Add checkpoint tags in prompt')
+            update_checkpoints = gr.Button("Get list of checkpoints")
 
         with gr.Accordion("Generation parameters", open=False):
             prompt_prefix = gr.Textbox(placeholder=params['prompt_prefix'], value=params['prompt_prefix'], label='Prompt Prefix (best used to describe the look of the character)')
@@ -415,6 +461,12 @@ def ui():
     hr_upscaler.change(lambda x: params.update({"hr_upscaler": x}), hr_upscaler, None)
     enable_hr.change(lambda x: params.update({"enable_hr": x}), enable_hr, None)
     enable_hr.change(lambda x: hr_options.update(visible=params["enable_hr"]), enable_hr, hr_options)
+
+    update_checkpoints.click(fn=get_checkpoints(), outputs=None)
+    update_checkpoints.click(lambda x: checkpoint.update(choices=params['checkpoint_list'], value=params['sd_checkpoint']), update_checkpoints, checkpoint)
+    checkpoint.change(lambda x: params.update({"sd_checkpoint": x}), denoising_strength, None)
+    checkpoint.change(lambda x: load_checkpoint(x), checkpoint, None)
+#    checkpoint_prompt.change(lambda x: params.update({"checkpoint_prompt": x}), checkpoint_prompt, None)
 
     translations.change(lambda x: params.update({"translations": x}), translations, None)
     secondary_prompt.change(lambda x: params.update({"secondary_prompt": x}), secondary_prompt, None)
