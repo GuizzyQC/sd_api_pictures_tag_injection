@@ -415,7 +415,7 @@ def ui():
             force_pic = gr.Button("Force the picture response")
             suppr_pic = gr.Button("Suppress the picture response")
         with gr.Row():
-            checkpoint = gr.Dropdown(modes_list, value=params['sd_checkpoint'], label="Checkpoint", type="value")
+            checkpoint = gr.Dropdown(params['checkpoint_list'], value=params['sd_checkpoint'], label="Checkpoint", type="value")
             checkpoint_prompt = gr.Checkbox(value=params['checkpoint_prompt'], label='Add checkpoint tags in prompt')
             update_checkpoints = gr.Button("Get list of checkpoints")
 
