@@ -203,19 +203,22 @@ def create_suffix():
     if params['secondary_prompt']:
         positive_suffix = params['secondary_positive_prompt']
         negative_suffix = params['secondary_negative_prompt']
-#    if params['checkpoint_prompt']:
-#        if params['secondary_prompt']:
-#            positive_suffix = positive_suffix + ", " + params['checkpoint_positive_prompt']
-#            negative_suffix = negative_suffix + ", " + params['checkpoint_negative_prompt']
-#        else:
-#            positive_suffix = params['checkpoint_positive_prompt']
-#            negative_suffix = params['checkpoint_negative_prompt']
+    if params['checkpoint_prompt']:
+        if params['secondary_prompt']:
+            positive_suffix = positive_suffix + ", " + params['checkpoint_positive_prompt']
+            negative_suffix = negative_suffix + ", " + params['checkpoint_negative_prompt']
+        else:
+            positive_suffix = params['checkpoint_positive_prompt']
+            negative_suffix = params['checkpoint_negative_prompt']
     if characterfocus and shared.character != 'None':
         positive_suffix = data['sd_tags_positive'] if 'sd_tags_positive' in data else "" 
         negative_suffix = data['sd_tags_negative'] if 'sd_tags_negative' in data else ""
         if params['secondary_prompt']:
             positive_suffix = params['secondary_positive_prompt'] + ", " + data['sd_tags_positive'] if 'sd_tags_positive' in data else params['secondary_positive_prompt']
             negative_suffix = params['secondary_negative_prompt'] + ", " + data['sd_tags_negative'] if 'sd_tags_negative' in data else params['secondary_negative_prompt']
+        if params['checkpoint_prompt']:
+            positive_suffix = positive_suffix + ", " + params['checkpoint_positive_prompt'] if 'checkpoint_positive_prompt' in params else positive_suffix
+            negative_suffix = negative_suffix + ", " + params['checkpoint_negative_prompt'] if 'checkpoint_negative_prompt' in params else negative_suffix
 
 
 # Get and save the Stable Diffusion-generated picture
@@ -387,12 +390,12 @@ def load_checkpoint(checkpoint):
         "sd_model_checkpoint": checkpoint
     }
 
+    prompts = json.loads(open(Path(f'extensions/sd_api_pictures_tag_injection/checkpoints.json'), 'r', encoding='utf-8').read())
+    for pair in prompts['pairs']:
+        if pair['name'] == params['sd_checkpoint']:
+            params['checkpoint_positive_prompt'] = pair['positive_prompt']
+            params['checkpoint_negative_prompt'] = pair['negative_prompt']
     requests.post(url=f'{params["address"]}/sdapi/v1/options', json=payload)
-#    prompts = json.loads(open(Path(f'extensions/sd_api_pictures_tag_injection/checkpoints.json'), 'r', encoding='utf-8').read())
-#    for pair in prompts['pairs']:
-#        if pair['name'] == params['sd_checkpoint']:
-#            params['checkpoint_positive_prompt'] = pair['positive_prompt']
-#            params['checkpoint_negative_prompt'] = pair['negative_prompt']
 
 def ui():
 
@@ -413,7 +416,7 @@ def ui():
             suppr_pic = gr.Button("Suppress the picture response")
         with gr.Row():
             checkpoint = gr.Dropdown(modes_list, value=params['sd_checkpoint'], label="Checkpoint", type="value")
-#            checkpoint_prompt = gr.Checkbox(value=params['checkpoint_prompt'], label='Add checkpoint tags in prompt')
+            checkpoint_prompt = gr.Checkbox(value=params['checkpoint_prompt'], label='Add checkpoint tags in prompt')
             update_checkpoints = gr.Button("Get list of checkpoints")
 
         with gr.Accordion("Generation parameters", open=False):
@@ -464,9 +467,9 @@ def ui():
 
     update_checkpoints.click(fn=get_checkpoints(), outputs=None)
     update_checkpoints.click(lambda x: checkpoint.update(choices=params['checkpoint_list'], value=params['sd_checkpoint']), update_checkpoints, checkpoint)
-    checkpoint.change(lambda x: params.update({"sd_checkpoint": x}), denoising_strength, None)
+    checkpoint.change(lambda x: params.update({"sd_checkpoint": x}), checkpoint, None)
     checkpoint.change(lambda x: load_checkpoint(x), checkpoint, None)
-#    checkpoint_prompt.change(lambda x: params.update({"checkpoint_prompt": x}), checkpoint_prompt, None)
+    checkpoint_prompt.change(lambda x: params.update({"checkpoint_prompt": x}), checkpoint_prompt, None)
 
     translations.change(lambda x: params.update({"translations": x}), translations, None)
     secondary_prompt.change(lambda x: params.update({"secondary_prompt": x}), secondary_prompt, None)

@@ -1,0 +1,12 @@
+{
+	"pairs": [{
+		"name": "toonyou_beta3.safetensors [52768d2bc4]",
+		"positive_prompt": "cartoon",
+		"negative_prompt": "photograph, realistic"
+	        },
+		{"name": "analogMadness_v50.safetensors [f968fc436a]",
+		"positive_prompt": "photorealistic, realistic",
+		"negative_prompt": "cartoon, render, anime"
+                }
+        ]
+}

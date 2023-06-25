@@ -27,6 +27,8 @@ To run it locally in parallel on the same machine, specify custom `--listen-port
 ## Features:
 - Dynamic injection of content into SD prompt upon detection of a preset "translation" string  
 - Dynamic injection of content into SD prompt upon detection of a request for character selfie  
+- Dynamic injection of content into SD prompt upon detection of a specific checkpoint being selected  
+- SD Checkpoint selection
 - Secondary tags injection, useful to toggle between two styles of images without having to manually type in tags  
 - API detection (press enter in the API box)  
 - VRAM management (model shuffling)  
@@ -34,6 +36,24 @@ To run it locally in parallel on the same machine, specify custom `--listen-port
 - persistent settings via settings.json
 
 The model input is modified only in the interactive mode; other two are unaffected. The output pic description is presented differently for Picture-book / Adventure mode.  
+
+### Checkpoint file Stable Diffusion tags
+
+If the "Add checkpoint tags in prompt" option is selected, if the checkpoint you loaded matches one in the checkpoints.json file it will add the relevant tags to your prompt. The format for the checkpoints.json file is as follow:
+
+```json
+{
+	"pairs": [{
+		"name": "toonyou_beta3.safetensors [52768d2bc4]",
+		"positive_prompt": "cartoon",
+		"negative_prompt": "photograph, realistic"
+	        },
+		{"name": "analogMadness_v50.safetensors [f968fc436a]",
+		"positive_prompt": "photorealistic, realistic",
+		"negative_prompt": "cartoon, render, anime"
+	    }]
+}
+```
 
 ### Character sheet Stable Diffusion tags
 
