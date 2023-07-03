@@ -232,6 +232,21 @@ def get_SD_pictures(description):
     create_suffix()
     if params['translations']:
         tpatterns = json.loads(open(Path(f'extensions/sd_api_pictures_tag_injection/translations.json'), 'r', encoding='utf-8').read())
+        if shared.character != 'None':
+            found_file = False
+            folder1 = 'characters'
+            folder2 = 'characters/instruction-following'
+            for folder in [folder1, folder2]:
+                for extension in ["yml", "yaml", "json"]:
+                    filepath = Path(f'{folder}/{shared.character}.{extension}')
+                    if filepath.exists():
+                        found_file = True
+                        break
+                if found_file:
+                    break
+            file_contents = open(filepath, 'r', encoding='utf-8').read()
+            data = json.loads(file_contents) if extension == "json" else yaml.safe_load(file_contents)
+            tpatterns['pairs'] = tpatterns['pairs'] + data['translation_patterns'] if 'translation_patterns' in data else tpatterns['pairs']
         triggered_array = [0] * len(tpatterns['pairs'])
         triggered_array = add_translations(initial_string,triggered_array,tpatterns)
         add_translations(description,triggered_array,tpatterns)

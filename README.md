@@ -65,9 +65,17 @@ In immersive mode, to help your character maintain a better fixed image, add pos
 	"sd_tags_negative": "old, elderly, child, deformed, cross-eyed"
 }
 ```
+
+```yaml
+sd_tags_positive: 24 year old, asian, long blond hair, ((twintail)), blue eyes, soft
+  skin, height 5'8, woman, <lora:shojovibe_v11:0.1>
+sd_tags_negative: old, elderly, child, deformed, cross-eyed
+```
+
 If clothing and accessories are permanently affixed and will never be changed in any picture you will request of that character, feel free to add them to this tag too. The extension prompts the character to describe what it is wearing whenever a picture of itself is requested as to keep that aspect dynamic, so adding it in the character json makes it more static.
 
 A good sample prompt to trigger this is "Send me a picture of you", followed or not by more details about requested action and context.
+
 
 ### Description to Stable Diffusion translation
 
@@ -89,7 +97,46 @@ Whenever the Activate SD translations box is checked, the extension will load th
 
 The tags can also include Stable Diffusion LORAs if you have any that are relevant.
 
-### Persistents settings
+#### Character specific translation patterns
+
+If you have translations that you only want to see added for a specific character (for instance, if a specific character has specific clothes or uniforms or physical characteristics that you only want to see triggered when specific words are used), add the translations_patterns heading in your character's JSON or YAML file. The *translations_patterns* heading works exactly the same way as the *pairs* heading does in the translations.json file.
+
+```json
+  "translation_patterns": [
+    {
+      "descriptive_word": [
+        "tennis"
+      ],
+      "SD_positive_translation": "cute frilly blue tennis uniform, <lora:frills:0.9>",
+      "SD_negative_translation": ""
+    },
+    {
+      "descriptive_word": [
+        "basketball",
+        "bball"
+      ],
+      "SD_positive_translation": "blue basketball uniform",
+      "SD_negative_translation": "red uniform"
+    }
+  ]
+```
+
+```yaml
+translation_patterns:
+- descriptive_word:
+  - tennis
+  SD_positive_translation: "cute frilly blue tennis uniform, <lora:frills:0.9>"
+  SD_negative_translation: ''
+- descriptive_word:
+  - basketball
+  - bball
+  SD_positive_translation: "blue basketball uniform"
+  SD_negative_translation: "red uniform"
+```
+
+Note that character specific translation patterns stack with the general translation patterns.
+
+### Persistent settings
 
 Create or modify the `settings.json` in the `text-generation-webui` root directory to override the defaults
 present in script.py, ex:
@@ -99,8 +146,8 @@ present in script.py, ex:
     "sd_api_pictures_tag_injection-manage_VRAM": 1,
     "sd_api_pictures_tag_injection-save_img": 1,
     "sd_api_pictures_tag_injection-prompt_prefix": "(Masterpiece:1.1), detailed, intricate, colorful, (solo:1.1)",
-    "sd_api_pictures_tag_injection-secondary_positive_prompt": "nsfw, naked",
-    "sd_api_pictures_tag_injection-secondary_negative_prompt": "young, old",
+    "sd_api_pictures_tag_injection-secondary_positive_prompt": "<lora:add_details:1.2>",
+    "sd_api_pictures_tag_injection-secondary_negative_prompt": "",
     "sd_api_pictures_tag_injection-sampler_name": "DPM++ 2M Karras"
 }
 ```

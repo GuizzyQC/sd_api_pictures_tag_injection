@@ -16,3 +16,13 @@ example_dialogue: |-
   {{char}}: Yeah, it's really fun. I'm lucky to be able to do this as a job.
 sd_tags_positive: "manga-style, 20 year old woman, anime, red square glasses"
 sd_tags_negative: "angry, old, elderly, child, deformed, cross-eyed"
+translation_patterns:
+- descriptive_word:
+  - tennis
+  SD_positive_translation: "cute frilly blue tennis uniform, <lora:frills:0.9>"
+  SD_negative_translation: ''
+- descriptive_word:
+  - basketball
+  - bball
+  SD_positive_translation: "blue basketball uniform"
+  SD_negative_translation: "red uniform"
