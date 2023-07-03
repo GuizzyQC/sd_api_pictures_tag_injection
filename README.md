@@ -41,6 +41,7 @@ The model input is modified only in the interactive mode; other two are unaffect
 
 If the "Add checkpoint tags in prompt" option is selected, if the checkpoint you loaded matches one in the checkpoints.json file it will add the relevant tags to your prompt. The format for the checkpoints.json file is as follow:
 
+JSON:
 ```json
 {
 	"pairs": [{
@@ -59,6 +60,7 @@ If the "Add checkpoint tags in prompt" option is selected, if the checkpoint you
 
 In immersive mode, to help your character maintain a better fixed image, add positive_sd and negative_sd to your character's json file to have Stable Diffusion tags that define their appearance automatically added to Stable Diffusion prompts whenever the extension detects the character was asked to send a picture of itself, ex:
 
+JSON:
 ```json
 {
 	"sd_tags_positive": "24 year old, asian, long blond hair, ((twintail)), blue eyes, soft skin, height 5'8, woman, <lora:shojovibe_v11:0.1>",
@@ -66,6 +68,7 @@ In immersive mode, to help your character maintain a better fixed image, add pos
 }
 ```
 
+YAML:
 ```yaml
 sd_tags_positive: 24 year old, asian, long blond hair, ((twintail)), blue eyes, soft
   skin, height 5'8, woman, <lora:shojovibe_v11:0.1>
@@ -81,6 +84,7 @@ A good sample prompt to trigger this is "Send me a picture of you", followed or 
 
 Whenever the Activate SD translations box is checked, the extension will load the translations.json file when a picture is requested, and will check in both the request to the language model, as well as the response of the language model, for specific words listed in the translations.json file and will add words or tags to the Stable Diffusion prompt accordingly, ex:
 
+JSON:
 ```json
 {
 	"pairs": [{
@@ -101,6 +105,7 @@ The tags can also include Stable Diffusion LORAs if you have any that are releva
 
 If you have translations that you only want to see added for a specific character (for instance, if a specific character has specific clothes or uniforms or physical characteristics that you only want to see triggered when specific words are used), add the translations_patterns heading in your character's JSON or YAML file. The *translations_patterns* heading works exactly the same way as the *pairs* heading does in the translations.json file.
 
+JSON:
 ```json
   "translation_patterns": [
     {
@@ -121,6 +126,7 @@ If you have translations that you only want to see added for a specific characte
   ]
 ```
 
+YAML:
 ```yaml
 translation_patterns:
 - descriptive_word:
@@ -141,6 +147,7 @@ Note that character specific translation patterns stack with the general transla
 Create or modify the `settings.json` in the `text-generation-webui` root directory to override the defaults
 present in script.py, ex:
 
+JSON:
 ```json
 {
     "sd_api_pictures_tag_injection-manage_VRAM": 1,
