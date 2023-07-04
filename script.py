@@ -11,6 +11,7 @@ import requests
 import torch
 import json
 import yaml
+from modules import shared
 from modules.models import reload_model, unload_model
 from PIL import Image
 
@@ -185,13 +186,13 @@ def create_suffix():
     negative_suffix = ""
 
     # load character data from json, yaml, or yml file
-    if shared.character != 'None':
+    if character != 'None':
         found_file = False
         folder1 = 'characters'
         folder2 = 'characters/instruction-following'
         for folder in [folder1, folder2]:
             for extension in ["yml", "yaml", "json"]:
-                filepath = Path(f'{folder}/{shared.character}.{extension}')
+                filepath = Path(f'{folder}/{character}.{extension}')
                 if filepath.exists():
                     found_file = True
                     break
@@ -210,7 +211,7 @@ def create_suffix():
         else:
             positive_suffix = params['checkpoint_positive_prompt']
             negative_suffix = params['checkpoint_negative_prompt']
-    if characterfocus and shared.character != 'None':
+    if characterfocus and character != 'None':
         positive_suffix = data['sd_tags_positive'] if 'sd_tags_positive' in data else "" 
         negative_suffix = data['sd_tags_negative'] if 'sd_tags_negative' in data else ""
         if params['secondary_prompt']:
@@ -232,13 +233,13 @@ def get_SD_pictures(description):
     create_suffix()
     if params['translations']:
         tpatterns = json.loads(open(Path(f'extensions/sd_api_pictures_tag_injection/translations.json'), 'r', encoding='utf-8').read())
-        if shared.character != 'None':
+        if character != 'None':
             found_file = False
             folder1 = 'characters'
             folder2 = 'characters/instruction-following'
             for folder in [folder1, folder2]:
                 for extension in ["yml", "yaml", "json"]:
-                    filepath = Path(f'{folder}/{shared.character}.{extension}')
+                    filepath = Path(f'{folder}/{character}.{extension}')
                     if filepath.exists():
                         found_file = True
                         break
@@ -251,8 +252,20 @@ def get_SD_pictures(description):
         triggered_array = add_translations(initial_string,triggered_array,tpatterns)
         add_translations(description,triggered_array,tpatterns)
 
+    final_positive_prompt = params['prompt_prefix'] + ", " + description + ", " + positive_suffix
+    final_positive_prompt = final_positive_prompt.replace(", ,", ",")
+    final_positive_prompt = final_positive_prompt.replace(",,",",")
+    if final_positive_prompt[0] == ",":
+        final_positive_prompt = final_positive_prompt.replace(", ","",1)
+    final_negative_prompt = params['negative_prompt'] + ", " + negative_suffix
+    final_negative_prompt = final_negative_prompt.replace(", ,", ",")
+    final_negative_prompt = final_negative_prompt.replace(",,",",")
+    if final_negative_prompt[0] == ",":
+        final_negative_prompt = final_negative_prompt.replace(", ","",1)
+
     payload = {
-        "prompt": params['prompt_prefix'] + ", " + description + ", " + positive_suffix,
+        "prompt": final_positive_prompt,
+        "negative_prompt": final_negative_prompt,
         "seed": params['seed'],
         "sampler_name": params['sampler_name'],
         "enable_hr": params['enable_hr'],
@@ -264,8 +277,7 @@ def get_SD_pictures(description):
         "width": params['width'],
         "height": params['height'],
         "restore_faces": params['restore_faces'],
-        "override_settings_restore_afterwards": True,
-        "negative_prompt": params['negative_prompt'] + ", " + negative_suffix
+        "override_settings_restore_afterwards": True
     }
 
     print(f'Prompting the image generator via the API on {params["address"]}...')
@@ -278,7 +290,7 @@ def get_SD_pictures(description):
         if params['save_img']:
             img_data = base64.b64decode(img_str)
 
-            variadic = f'{date.today().strftime("%Y_%m_%d")}/{shared.character}_{int(time.time())}'
+            variadic = f'{date.today().strftime("%Y_%m_%d")}/{character}_{int(time.time())}'
             output_file = Path(f'extensions/sd_api_pictures_tag_injection/outputs/{variadic}.png')
             output_file.parent.mkdir(parents=True, exist_ok=True)
 
@@ -304,12 +316,14 @@ def get_SD_pictures(description):
 
 # TODO: how do I make the UI history ignore the resulting pictures (I don't want HTML to appear in history)
 # and replace it with 'text' for the purposes of logging?
-def output_modifier(string):
+def output_modifier(string, state):
     """
     This function is applied to the model outputs.
     """
 
-    global picture_response, params
+    global picture_response, params, character
+    
+    character = state['character_menu']
 
     if not picture_response:
         return string
