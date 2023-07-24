@@ -40,6 +40,8 @@ params = {
     'secondary_prompt': False,
     'translations': False,
     'checkpoint_prompt' : False,
+    'processing': "safe",
+    'description_weight' : '1',
     'sd_checkpoint' : ' ',
     'checkpoint_list' : [" "],
     'checkpoint_positive_prompt' : '',
@@ -179,7 +181,6 @@ def input_modifier(string):
     if params['mode'] == 0:
         return string
 
-# Add NSFW tags if NSFW is enabled, add character sheet tags if character is describing itself
 def create_suffix():
     global params, positive_suffix, negative_suffix, characterfocus
     positive_suffix = ""
@@ -221,6 +222,20 @@ def create_suffix():
             positive_suffix = positive_suffix + ", " + params['checkpoint_positive_prompt'] if 'checkpoint_positive_prompt' in params else positive_suffix
             negative_suffix = negative_suffix + ", " + params['checkpoint_negative_prompt'] if 'checkpoint_negative_prompt' in params else negative_suffix
 
+def tag_calculator(affix):
+    tags = affix.split(",")
+    if params['processing'] == "safe":
+        seen = set()
+        unique = []
+        for tag in tags:
+            if tag not in seen:
+                unique.append(tag)
+                seen.add(tag)
+        string_tags = ""
+        for tag in unique:
+            string_tags += ", " + tag
+    return string_tags
+
 
 # Get and save the Stable Diffusion-generated picture
 def get_SD_pictures(description):
@@ -252,12 +267,12 @@ def get_SD_pictures(description):
         triggered_array = add_translations(initial_string,triggered_array,tpatterns)
         add_translations(description,triggered_array,tpatterns)
 
-    final_positive_prompt = params['prompt_prefix'] + ", " + description + ", " + positive_suffix
+    final_positive_prompt = tag_calculator(params['prompt_prefix']) + ", (" + description + ":" + str(params['description_weight']) + "), " + tag_calculator(positive_suffix)
     final_positive_prompt = final_positive_prompt.replace(", ,", ",")
     final_positive_prompt = final_positive_prompt.replace(",,",",")
     if final_positive_prompt[0] == ",":
         final_positive_prompt = final_positive_prompt.replace(", ","",1)
-    final_negative_prompt = params['negative_prompt'] + ", " + negative_suffix
+    final_negative_prompt = tag_calculator(params['negative_prompt']) + ", " + tag_calculator(negative_suffix)
     final_negative_prompt = final_negative_prompt.replace(", ,", ",")
     final_negative_prompt = final_negative_prompt.replace(",,",",")
     if final_negative_prompt[0] == ",":
@@ -445,6 +460,7 @@ def ui():
             update_checkpoints = gr.Button("Get list of checkpoints")
 
         with gr.Accordion("Generation parameters", open=False):
+            description_weight = gr.Slider(0.1, 4, value=params['description_weight'], step=0.1, label='Description Weight')
             prompt_prefix = gr.Textbox(placeholder=params['prompt_prefix'], value=params['prompt_prefix'], label='Prompt Prefix (best used to describe the look of the character)')
             negative_prompt = gr.Textbox(placeholder=params['negative_prompt'], value=params['negative_prompt'], label='Negative Prompt')
             with gr.Row():
@@ -479,6 +495,7 @@ def ui():
     save_img.change(lambda x: params.update({"save_img": x}), save_img, None)
 
     address.submit(fn=SD_api_address_update, inputs=address, outputs=address)
+    description_weight.change(lambda x: params.update({"description_weight": x}), description_weight, None)
     prompt_prefix.change(lambda x: params.update({"prompt_prefix": x}), prompt_prefix, None)
     negative_prompt.change(lambda x: params.update({"negative_prompt": x}), negative_prompt, None)
     width.change(lambda x: params.update({"width": x}), width, None)
