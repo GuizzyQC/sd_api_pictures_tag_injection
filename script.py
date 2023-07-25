@@ -222,21 +222,26 @@ def create_suffix():
             positive_suffix = positive_suffix + ", " + params['checkpoint_positive_prompt'] if 'checkpoint_positive_prompt' in params else positive_suffix
             negative_suffix = negative_suffix + ", " + params['checkpoint_negative_prompt'] if 'checkpoint_negative_prompt' in params else negative_suffix
 
-def clean_spaces(text):
-    while any([text.count(', ,'),text.count(',,'),text.count('  ')]):
+def clean_spaces(text): # Cleanup double spaces, double commas, and comma-space-comma as these are all meaningless to us and interfere with splitting up tags
+    while any([", ," in text, ",," in text, "  " in text]):
         text = text.replace(", ,", ",")
         text = text.replace(",,", ",")
         text = text.replace("  ", " ")
-    while any([text[0] == " ",text[0] == ","]):
-        if text[0] == " ":
-            text = text.replace(" ","",1)
-        if text[0] == ",":
-            text = text.replace(",","",1)
-    while any([text[len(text)-1] == " ",text[len(text)-1] == ","]):
-        if text[len(text)-1] == " ":
-            text = text[::-1].replace(" ","",1)[::-1]
-        if text[len(text)-1] == ",":
-            text = text[::-1].replace(",","",1)[::-1]
+    try:
+        while any([text[0] == " ",text[0] == ","]): # Cleanup leading spaces and commas, trailing spaces and commas
+            if text[0] == " ":
+                text = text.replace(" ","",1)
+            if text[0] == ",":
+                text = text.replace(",","",1)
+        while any([text[len(text)-1] == " ",text[len(text)-1] == ","]):
+            if text[len(text)-1] == " ":
+                text = text[::-1].replace(" ","",1)[::-1]
+            if text[len(text)-1] == ",":
+                text = text[::-1].replace(",","",1)[::-1]
+    except IndexError: # IndexError is expected if string is empty or becomes empty during cleanup and can be safely ignored
+        pass
+    except: 
+        print("Error cleaning up text")
     return text
 
 def tag_calculator(affix):
@@ -248,16 +253,17 @@ def tag_calculator(affix):
     if params['processing'] == False: # A simple processor that removes exact duplicates (does not remove duplicates with different weights)
         string_tags = ""
         unique = []
-        for tag in tags:
-            if tag not in unique:
-                unique.append(tag)
-        for tag in unique:
-            string_tags += ", " + tag
+        if tags:
+            for tag in tags:
+                if tag not in unique:
+                    unique.append(tag)
+            for tag in unique:
+                string_tags += ", " + tag
 
     if params['processing'] == True: # A smarter processor that calculates resulting tags from multiple tags
         string_tags = ""
 
-        class tag_objects:
+        class tag_objects: # Tags have three characteristics, their text, their type and their weight. The type distinguishes between simple tags without parenthesis, LORAs and weighted tags
             def __init__(self, text, tag_type, weight):
                 self.text = text
                 self.tag_type = tag_type
@@ -268,26 +274,27 @@ def tag_calculator(affix):
 
         initial_tags = []
 
-        for tag in tags:
-            if tag[0] != "(" and tag[0] != "<":
-                initial_tags.append(tag_objects(tag,"simple",1.0))
-            if tag[0] == "<":
-                pattern = r'.*?\:(.*):(.*)\>.*'
-                match = re.search(pattern,tag)
-                initial_tags.append(tag_objects(match.group(1),"lora",match.group(2)))
-            if tag[0] == "(":
-                if ":" in tag:
-                    pattern = r'\((.*)\:(.*)\).*'
+        for tag in tags: # Create an array of all tags as objects. Use the first character in the tag to distinguish the type
+            if tag:
+                if tag[0] != "(" and tag[0] != "<":
+                    initial_tags.append(tag_objects(tag,"simple",1.0)) # Simple tags start with neither a ( or a < and are assigned a weight of one
+                if tag[0] == "<":
+                    pattern = r'.*?\:(.*):(.*)\>.*'
                     match = re.search(pattern,tag)
-                    initial_tags.append(tag_objects(match.group(1),"weighted",match.group(2)))
-                else:
-                    pattern = r'\((.*)\).*'
-                    match = re.search(pattern,tag)
-                    initial_tags.append(tag_objects(match.group(1),"weighted",1.2))
+                    initial_tags.append(tag_objects(match.group(1),"lora",match.group(2))) # LORAs start with a < and have their own weight indicated with them
+                if tag[0] == "(":
+                    if ":" in tag:
+                        pattern = r'\((.*)\:(.*)\).*'
+                        match = re.search(pattern,tag)
+                        initial_tags.append(tag_objects(match.group(1),"weighted",match.group(2))) # Weighted tags start with a ( and their weight can be indicated after a :
+                    else:
+                        pattern = r'\((.*)\).*'
+                        match = re.search(pattern,tag)
+                        initial_tags.append(tag_objects(match.group(1),"weighted",1.2)) # Weighted tags sometimes don't have a weight indicated, in these cases I have assigned them an arbitrary weight of 1.2
 
         unique = []
 
-        for tag in initial_tags:
+        for tag in initial_tags: # Remove duplicate simple tags without parenthesis, increase weight according to repetition, convert them to weighted tags and put them back into the array so they can later be processed again as weighted tags
             if tag.tag_type == "simple":
                 if any(x.text == tag.text for x in unique):
                     for matched_tag in unique:
@@ -300,7 +307,7 @@ def tag_calculator(affix):
 
         loras = []
 
-        for tag in initial_tags:
+        for tag in initial_tags: # Remove duplicate LORAs, keep only highest weight found and put them into a separate array
             if tag.tag_type == "lora":
                 if any(x.text == tag.text for x in loras):
                     for matched_tag in loras:
@@ -312,7 +319,7 @@ def tag_calculator(affix):
 
         final_tags = []
 
-        for tag in initial_tags:
+        for tag in initial_tags: # Remove duplicate weighted tags and calculate final tag weight (including converted simple tags) and the unique ones with their final weight in a separate array
             if tag.tag_type == "weighted":
                 if any(x.text == tag.text for x in final_tags):
                     if tag.weight == 1:
@@ -327,7 +334,8 @@ def tag_calculator(affix):
                                 matched_tag.update_weight(round(resulting_weight,1))
                 else:
                     final_tags.append(tag_objects(tag.text,tag.tag_type,tag.weight))
-        for tag in final_tags:
+
+        for tag in final_tags: # Construct a string from the finalized unique weighted tags and the unique LORAs to pass to the payload
             if tag.weight == 1.0:
                 string_tags += tag.text + ", "
             else:
