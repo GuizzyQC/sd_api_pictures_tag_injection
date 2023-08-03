@@ -28,10 +28,10 @@ To run it locally in parallel on the same machine, specify custom `--listen-port
 - Dynamic injection of content into SD prompt upon detection of a preset "translation" string  
 - Dynamic injection of content into SD prompt upon detection of a request for character selfie  
 - Dynamic injection of content into SD prompt upon detection of a specific checkpoint being selected  
-- Advanced tag processor
-- LLM Response Weight adjustements
-- SD Checkpoint selection
-- Secondary tags injection, useful to toggle between two styles of images without having to manually type in tags  
+- Advanced tag processor  
+- Adjust weight of different elements sent to the SD prompt with the Description Mixer  
+- SD Checkpoint selection  
+- Secondary positive and negative tags fields  
 - API detection (press enter in the API box)  
 - VRAM management (model shuffling)  
 - Three different operation modes (manual, interactive, always-on)  
@@ -144,9 +144,9 @@ translation_patterns:
 
 Note that character specific translation patterns stack with the general translation patterns.
 
-### LLM Response Weight adjustment
+### Description Mixer
 
-Under the Generation parameters options you will find the LLM Response Weight slider. Adjusting this will change how much weight the SD instance is going to put on the LLM's response to your query. A higher weight should increase the correlation between the description and the image, at the cost of ignoring the injected tags from this extension, and potentially ruining your picture with strong conflicting and confusing requests. A lower weight will leave more of the description to your injected tags, reducing the description to more of a suggestion than a request to the SD instance, eventually losing the very point of using a LLM for image generation.
+Under the Description Mixer options you will find the LLM Response Weight, Subject Weight and Initial Prompt weight slider. Adjusting this will change how much weight the SD instance is going to put on each of these elements to your query. At zero, the element is not added at all to the query. A higher weight should increase the correlation between the description element and the image, at the cost of ignoring the injected tags from this extension, and potentially ruining your picture with strong conflicting and confusing requests. A lower weight will leave more of the description to your injected tags, reducing the description to more of a suggestion than a request to the SD instance. While the LLM Response Weight is much of the point of prompting Stable Diffusion through a LLM, lowering its weight or removing it and using more the Subject Weight or the Initial Prompt weight can be useful if you want an image that's built with a similar prompt as that of the description. It could come in handy when illustrating a story for instance. It can also improve results with SD checkpoints that respond poorly to the long descriptive prompts an LLM often responds with.
 
 ### Advanced tag processing
 
@@ -155,6 +155,8 @@ The advanced tag processing checkbox enables a more complex way of dealing with 
 With advanced tag processing disabled, the only processing that is done is that all EXACT duplicate tags are removed. Tags with the same text but different weights are not counted as duplicates.
 
 With advanced tag processing enabled, tags without parenthesis are given a weight of one. Two tags with a weight of one found become one tag with a weight of 1.1. Two duplicate tags with different weight are calculated with the difference to one from one of the tag being added to the other. If two duplicate LORAs are detected, only the one with the highest weight is kept.
+
+Once enabled, Advanced tag processing allows you to Disable SD LORAs if you so choose. This was mostly added due to the arrival of SDXL, which caused a break in the up-to-then broad compatibility of LORAs and checkpoints.
 
 **WARNING: To work properly the advanced tag processing needs very strict formatting on your tags. Two rules in particular have to be respected: make sure all your tags are separated with commas, and make sure that you have no tag with commas inside parentheses.**
 Dynamic tags should still work as long as they respect the rules above, but they will be passed as is as they are not resolved until they reach Auto1111's API.

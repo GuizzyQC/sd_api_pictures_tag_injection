@@ -41,11 +41,10 @@ params = {
     'translations': False,
     'checkpoint_prompt' : False,
     'processing': False,
+    'disable_loras': False,
     'description_weight' : '1',
-    'sd_checkpoint' : ' ',
-    'checkpoint_list' : [" "],
-    'checkpoint_positive_prompt' : '',
-    'checkpoint_negative_prompt' : '',
+    'subject_weight' : '0',
+    'initial_weight' : '0',
     'secondary_negative_prompt' : '',
     'secondary_positive_prompt' : ''
 
@@ -89,6 +88,12 @@ if params['manage_VRAM']:
 characterfocus = ""
 positive_suffix = ""
 negative_suffix = ""
+a1111Status = {
+    'sd_checkpoint' : '', 
+    'checkpoint_positive_prompt' : '',
+    'checkpoint_negative_prompt' : ''
+    }
+checkpoint_list = []
 samplers = ['DDIM', 'DPM++ 2M Karras']  # TODO: get the availible samplers with http://{address}}/sdapi/v1/samplers
 SD_models = ['NeverEndingDream']  # TODO: get with http://{address}}/sdapi/v1/sd-models and allow user to select
 initial_string = ""
@@ -127,7 +132,8 @@ def triggers_are_in(string):
     return bool(re.search('(?aims)(send|mail|message|me)\\b.+?\\b(image|pic(ture)?|photo|polaroid|snap(shot)?|selfie|meme)s?\\b', string))
 
 def request_generation(case,string):
-    global characterfocus
+    global characterfocus, subject
+    subject = ""
     if case == 1:
         toggle_generation(True)
         characterfocus = True
@@ -135,6 +141,7 @@ def request_generation(case,string):
         after_you = string.split("you", 1)[1] # subdivide the string once by the first 'you' instance and get what's coming after it
         if after_you != '':
             string = "Describe in vivid detail as if you were describing to a blind person your current clothing and the environment. Describe in vivid detail as if you were describing to a blind person yourself performing the following action: " + after_you.strip()
+            subject = after_you.strip()
         else:
             string = "Describe in vivid detail as if you were describing to a blind person your current clothing and the environment. Describe yourself in vivid detail as if you were describing to a blind person."
     elif case == 2:
@@ -207,11 +214,11 @@ def create_suffix():
         negative_suffix = params['secondary_negative_prompt']
     if params['checkpoint_prompt']:
         if params['secondary_prompt']:
-            positive_suffix = positive_suffix + ", " + params['checkpoint_positive_prompt']
-            negative_suffix = negative_suffix + ", " + params['checkpoint_negative_prompt']
+            positive_suffix = positive_suffix + ", " + a1111Status['checkpoint_positive_prompt']
+            negative_suffix = negative_suffix + ", " + a1111Status['checkpoint_negative_prompt']
         else:
-            positive_suffix = params['checkpoint_positive_prompt']
-            negative_suffix = params['checkpoint_negative_prompt']
+            positive_suffix = a1111Status['checkpoint_positive_prompt']
+            negative_suffix = a1111Status['checkpoint_negative_prompt']
     if characterfocus and character != 'None':
         positive_suffix = data['sd_tags_positive'] if 'sd_tags_positive' in data else "" 
         negative_suffix = data['sd_tags_negative'] if 'sd_tags_negative' in data else ""
@@ -219,8 +226,8 @@ def create_suffix():
             positive_suffix = params['secondary_positive_prompt'] + ", " + data['sd_tags_positive'] if 'sd_tags_positive' in data else params['secondary_positive_prompt']
             negative_suffix = params['secondary_negative_prompt'] + ", " + data['sd_tags_negative'] if 'sd_tags_negative' in data else params['secondary_negative_prompt']
         if params['checkpoint_prompt']:
-            positive_suffix = positive_suffix + ", " + params['checkpoint_positive_prompt'] if 'checkpoint_positive_prompt' in params else positive_suffix
-            negative_suffix = negative_suffix + ", " + params['checkpoint_negative_prompt'] if 'checkpoint_negative_prompt' in params else negative_suffix
+            positive_suffix = positive_suffix + ", " + a1111Status['checkpoint_positive_prompt'] if 'checkpoint_positive_prompt' in a1111Status else positive_suffix
+            negative_suffix = negative_suffix + ", " + a1111Status['checkpoint_negative_prompt'] if 'checkpoint_negative_prompt' in a1111Status else negative_suffix
 
 def clean_spaces(text): # Cleanup double spaces, double commas, and comma-space-comma as these are all meaningless to us and interfere with splitting up tags
     while any([", ," in text, ",," in text, "  " in text]):
@@ -253,11 +260,10 @@ def tag_calculator(affix):
     if params['processing'] == False: # A simple processor that removes exact duplicates (does not remove duplicates with different weights)
         string_tags = ""
         unique = []
-        if tags:
-            for tag in tags:
-                if tag not in unique:
+        for tag in tags:
+            if tag not in unique:
                     unique.append(tag)
-            for tag in unique:
+        for tag in unique:
                 string_tags += ", " + tag
 
     if params['processing'] == True: # A smarter processor that calculates resulting tags from multiple tags
@@ -267,9 +273,6 @@ def tag_calculator(affix):
             def __init__(self, text, tag_type, weight):
                 self.text = text
                 self.tag_type = tag_type
-                self.weight = float(weight)
-
-            def update_weight(self, weight):
                 self.weight = float(weight)
 
         initial_tags = []
@@ -300,7 +303,7 @@ def tag_calculator(affix):
                     for matched_tag in unique:
                         if matched_tag.text == tag.text:
                             resulting_weight = matched_tag.weight + 0.1
-                            matched_tag.update_weight(resulting_weight)
+                            matched_tag.weight = float(resulting_weight)
                 else:
                     unique.append(tag_objects(tag.text,"weighted",tag.weight))
         initial_tags = initial_tags + unique
@@ -313,7 +316,7 @@ def tag_calculator(affix):
                     for matched_tag in loras:
                         if matched_tag.text == tag.text:
                             if tag.weight > matched_tag.weight:
-                                matched_tag.update_weight(tag.weight)
+                                matched_tag.weight = float(tag.weight)
                 else:
                     loras.append(tag_objects(tag.text,"lora",tag.weight))
 
@@ -322,16 +325,13 @@ def tag_calculator(affix):
         for tag in initial_tags: # Remove duplicate weighted tags and calculate final tag weight (including converted simple tags) and the unique ones with their final weight in a separate array
             if tag.tag_type == "weighted":
                 if any(x.text == tag.text for x in final_tags):
-                    if tag.weight == 1:
-                        for matched_tag in final_tags:
-                            if matched_tag.text == tag.text:
+                    for matched_tag in final_tags:
+                        if matched_tag.text == tag.text:
+                            if tag.weight == 1.0:
                                 resulting_weight = matched_tag.weight + 0.1
-                                matched_tag.update_weight(round(resulting_weight,1))
-                    else:
-                        for matched_tag in final_tags:
-                            if matched_tag.text == tag.text:
+                            else:
                                 resulting_weight = matched_tag.weight + (tag.weight - 1)
-                                matched_tag.update_weight(round(resulting_weight,1))
+                            matched_tag.weight = float(resulting_weight)
                 else:
                     final_tags.append(tag_objects(tag.text,tag.tag_type,tag.weight))
 
@@ -339,12 +339,33 @@ def tag_calculator(affix):
             if tag.weight == 1.0:
                 string_tags += tag.text + ", "
             else:
-                string_tags += "(" + tag.text + ":" + str(tag.weight) + "), "
+                if tag.weight > 0:
+                    string_tags += "(" + tag.text + ":" + str(round(tag.weight,1)) + "), " 
 
-        for tag in loras:
-            string_tags += "<lora:" + tag.text + ":" + str(tag.weight) + ">, "
+        if not params['disable_loras']:
+            for tag in loras:
+                string_tags += "<lora:" + tag.text + ":" + str(round(tag.weight,1)) + ">, "
 
     return string_tags
+
+def build_body(description,subject,original):
+    response = ""
+    if all([description, float(params['description_weight']) != 0]):
+        if float(params['description_weight']) == 1:
+            response = description + ", "
+        else:
+            response = "(" + description + ":" + str(params['description_weight']) + "), "
+    if all([subject, float(params['subject_weight']) != 0]):
+        if float(params['subject_weight']) == 1:
+            response += subject + ", "
+        else:
+            response += "(" + subject + ":" + str(params['subject_weight']) + "), "
+    if all([original, float(params['initial_weight']) != 0]):
+        if float(params['initial_weight']) == 1:
+            response += original + ", "
+        else:
+            response += "(" + original + ":" + str(params['initial_weight']) + "), "
+    return response
 
 # Get and save the Stable Diffusion-generated picture
 def get_SD_pictures(description):
@@ -376,7 +397,7 @@ def get_SD_pictures(description):
         triggered_array = add_translations(initial_string,triggered_array,tpatterns)
         add_translations(description,triggered_array,tpatterns)
 
-    final_positive_prompt = clean_spaces(tag_calculator(clean_spaces(params['prompt_prefix'])) + ", (" + clean_spaces(description) + ":" + str(params['description_weight']) + "), " + tag_calculator(clean_spaces(positive_suffix)))
+    final_positive_prompt = clean_spaces(tag_calculator(clean_spaces(params['prompt_prefix'])) + ", " + build_body(description,subject,initial_string) + tag_calculator(clean_spaces(positive_suffix)))
     final_negative_prompt = clean_spaces(tag_calculator(clean_spaces(params['negative_prompt'])) + ", " + tag_calculator(clean_spaces(negative_suffix)))
 
     payload = {
@@ -513,19 +534,19 @@ def SD_api_address_update(address):
     return gr.Textbox.update(label=msg)
 
 def get_checkpoints():
-    global params
+    global a1111Status, checkpoint_list
 
     models = requests.get(url=f'{params["address"]}/sdapi/v1/sd-models')
     options = requests.get(url=f'{params["address"]}/sdapi/v1/options')
     options_json = options.json()
-    params['sd_checkpoint'] = options_json['sd_model_checkpoint']
-    params['checkpoint_list'] = [result["title"] for result in models.json()]
-    return gr.update(choices=params['checkpoint_list'], value=params['sd_checkpoint'])
+    a1111Status['sd_checkpoint'] = options_json['sd_model_checkpoint']
+    checkpoint_list = [result["title"] for result in models.json()]
+    return gr.update(choices=checkpoint_list, value=a1111Status['sd_checkpoint'])
 
 def load_checkpoint(checkpoint):
-    global params
-    params['checkpoint_positive_prompt'] = ""
-    params['checkpoint_negative_prompt'] = ""
+    global a1111Status
+    a1111Status['checkpoint_positive_prompt'] = ""
+    a1111Status['checkpoint_negative_prompt'] = ""
 
     payload = {
         "sd_model_checkpoint": checkpoint
@@ -533,9 +554,9 @@ def load_checkpoint(checkpoint):
 
     prompts = json.loads(open(Path(f'extensions/sd_api_pictures_tag_injection/checkpoints.json'), 'r', encoding='utf-8').read())
     for pair in prompts['pairs']:
-        if pair['name'] == params['sd_checkpoint']:
-            params['checkpoint_positive_prompt'] = pair['positive_prompt']
-            params['checkpoint_negative_prompt'] = pair['negative_prompt']
+        if pair['name'] == a1111Status['sd_checkpoint']:
+            a1111Status['checkpoint_positive_prompt'] = pair['positive_prompt']
+            a1111Status['checkpoint_negative_prompt'] = pair['negative_prompt']
     requests.post(url=f'{params["address"]}/sdapi/v1/options', json=payload)
 
 def ui():
@@ -551,17 +572,22 @@ def ui():
                 manage_VRAM = gr.Checkbox(value=params['manage_VRAM'], label='Manage VRAM')
                 save_img = gr.Checkbox(value=params['save_img'], label='Keep original images and use them in chat')
                 secondary_prompt = gr.Checkbox(value=params['secondary_prompt'], label='Add secondary tags in prompt')
-                tag_processing = gr.Checkbox(value=params['processing'], label='Activate advanced tag processing')
                 translations = gr.Checkbox(value=params['translations'], label='Activate SD translations')
+                tag_processing = gr.Checkbox(value=params['processing'], label='Advanced tag processing')
+                disable_loras = gr.Checkbox(value=params['disable_loras'], label='Disable SD LORAs')
             force_pic = gr.Button("Force the picture response")
             suppr_pic = gr.Button("Suppress the picture response")
         with gr.Row():
-            checkpoint = gr.Dropdown(params['checkpoint_list'], value=params['sd_checkpoint'], label="Checkpoint", type="value")
+            checkpoint = gr.Dropdown(checkpoint_list, value=a1111Status['sd_checkpoint'], label="Checkpoint", type="value")
             checkpoint_prompt = gr.Checkbox(value=params['checkpoint_prompt'], label='Add checkpoint tags in prompt')
             update_checkpoints = gr.Button("Get list of checkpoints")
 
+        with gr.Accordion("Description mixer", open=False):
+            description_weight = gr.Slider(0, 4, value=params['description_weight'], step=0.1, label='LLM Response Weight')
+            subject_weight = gr.Slider(0, 4, value=params['subject_weight'], step=0.1, label='Subject Weight')
+            initial_weight = gr.Slider(0, 4, value=params['initial_weight'], step=0.1, label='Initial Prompt Weight')
+
         with gr.Accordion("Generation parameters", open=False):
-            description_weight = gr.Slider(0.1, 4, value=params['description_weight'], step=0.1, label='LLM Response Weight')
             prompt_prefix = gr.Textbox(placeholder=params['prompt_prefix'], value=params['prompt_prefix'], label='Prompt Prefix (best used to describe the look of the character)')
             negative_prompt = gr.Textbox(placeholder=params['negative_prompt'], value=params['negative_prompt'], label='Negative Prompt')
             with gr.Row():
@@ -571,8 +597,8 @@ def ui():
                     secondary_negative_prompt = gr.Textbox(placeholder=params['secondary_negative_prompt'], value=params['secondary_negative_prompt'], label='Secondary negative prompt')
             with gr.Row():
                 with gr.Column():
-                    width = gr.Slider(256, 768, value=params['width'], step=64, label='Width')
-                    height = gr.Slider(256, 768, value=params['height'], step=64, label='Height')
+                    width = gr.Slider(64, 2048, value=params['width'], step=64, label='Width')
+                    height = gr.Slider(64, 2048, value=params['height'], step=64, label='Height')
                 with gr.Column():
                     sampler_name = gr.Textbox(placeholder=params['sampler_name'], value=params['sampler_name'], label='Sampling method', elem_id="sampler_box")
                     steps = gr.Slider(1, 150, value=params['steps'], step=1, label="Sampling steps")
@@ -597,6 +623,8 @@ def ui():
 
     address.submit(fn=SD_api_address_update, inputs=address, outputs=address)
     description_weight.change(lambda x: params.update({"description_weight": x}), description_weight, None)
+    initial_weight.change(lambda x: params.update({"initial_weight": x}), initial_weight, None)
+    subject_weight.change(lambda x: params.update({"subject_weight": x}), subject_weight, None)
     prompt_prefix.change(lambda x: params.update({"prompt_prefix": x}), prompt_prefix, None)
     negative_prompt.change(lambda x: params.update({"negative_prompt": x}), negative_prompt, None)
     width.change(lambda x: params.update({"width": x}), width, None)
@@ -608,10 +636,11 @@ def ui():
     enable_hr.change(lambda x: params.update({"enable_hr": x}), enable_hr, None)
     enable_hr.change(lambda x: hr_options.update(visible=params["enable_hr"]), enable_hr, hr_options)
     tag_processing.change(lambda x: params.update({"processing": x}), tag_processing, None)
-
+    tag_processing.change(lambda x: disable_loras.update(visible=params["processing"]), tag_processing, disable_loras)
+    disable_loras.change(lambda x: params.update({"disable_loras": x}), disable_loras, None)
 
     update_checkpoints.click(get_checkpoints, None, checkpoint)
-    checkpoint.change(lambda x: params.update({"sd_checkpoint": x}), checkpoint, None)
+    checkpoint.change(lambda x: a1111Status.update({"sd_checkpoint": x}), checkpoint, None)
     checkpoint.change(load_checkpoint, checkpoint, None)
     checkpoint_prompt.change(lambda x: params.update({"checkpoint_prompt": x}), checkpoint_prompt, None)
 
