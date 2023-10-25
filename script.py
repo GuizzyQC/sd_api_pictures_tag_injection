@@ -567,7 +567,7 @@ def ui():
         with gr.Row():
             address = gr.Textbox(placeholder=params['address'], value=params['address'], label='Auto1111\'s WebUI address')
             modes_list = ["Manual", "Immersive/Interactive", "Picturebook/Adventure"]
-            mode = gr.Dropdown(modes_list, value=modes_list[params['mode']], label="Mode of operation", type="index")
+            mode = gr.Dropdown(modes_list, value=modes_list[params['mode']], allow_custom_value=True, label="Mode of operation", type="index")
             with gr.Column(scale=1, min_width=300):
                 manage_VRAM = gr.Checkbox(value=params['manage_VRAM'], label='Manage VRAM')
                 save_img = gr.Checkbox(value=params['save_img'], label='Keep original images and use them in chat')
@@ -578,7 +578,7 @@ def ui():
             force_pic = gr.Button("Force the picture response")
             suppr_pic = gr.Button("Suppress the picture response")
         with gr.Row():
-            checkpoint = gr.Dropdown(checkpoint_list, value=a1111Status['sd_checkpoint'], label="Checkpoint", type="value")
+            checkpoint = gr.Dropdown(checkpoint_list, value=a1111Status['sd_checkpoint'], allow_custom_value=True, label="Checkpoint", type="value")
             checkpoint_prompt = gr.Checkbox(value=params['checkpoint_prompt'], label='Add checkpoint tags in prompt')
             update_checkpoints = gr.Button("Get list of checkpoints")
 
