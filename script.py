@@ -397,6 +397,13 @@ def get_SD_pictures(description):
         triggered_array = add_translations(initial_string,triggered_array,tpatterns)
         add_translations(description,triggered_array,tpatterns)
 
+    if description is None:
+        description = ""
+    if subject is None:
+        subject = ""
+    if initial_string is None:
+        initial_string = ""
+    
     final_positive_prompt = clean_spaces(tag_calculator(clean_spaces(params['prompt_prefix'])) + ", " + build_body(description,subject,initial_string) + tag_calculator(clean_spaces(positive_suffix)))
     final_negative_prompt = clean_spaces(tag_calculator(clean_spaces(params['negative_prompt'])) + ", " + tag_calculator(clean_spaces(negative_suffix)))
 
