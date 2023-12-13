@@ -460,7 +460,7 @@ def output_modifier(string, state):
 
     global picture_response, params, character
     
-    character = state.get('character_menu',None)
+    character = state.get('character_menu','None')
 
     if not picture_response:
         return string
