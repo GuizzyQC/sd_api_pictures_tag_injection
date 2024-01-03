@@ -97,6 +97,9 @@ checkpoint_list = []
 samplers = ['DDIM', 'DPM++ 2M Karras']  # TODO: get the availible samplers with http://{address}}/sdapi/v1/samplers
 SD_models = ['NeverEndingDream']  # TODO: get with http://{address}}/sdapi/v1/sd-models and allow user to select
 initial_string = ""
+description = ""
+subject = ""
+
 
 picture_response = False  # specifies if the next model response should appear as a picture
 
@@ -348,18 +351,18 @@ def tag_calculator(affix):
 
     return string_tags
 
-def build_body(description,subject,original):
+def build_body(description,topic,original):
     response = ""
     if all([description, float(params['description_weight']) != 0]):
         if float(params['description_weight']) == 1:
             response = description + ", "
         else:
             response = "(" + description + ":" + str(params['description_weight']) + "), "
-    if all([subject, float(params['subject_weight']) != 0]):
+    if all([topic, float(params['subject_weight']) != 0]):
         if float(params['subject_weight']) == 1:
-            response += subject + ", "
+            response += topic + ", "
         else:
-            response += "(" + subject + ":" + str(params['subject_weight']) + "), "
+            response += "(" + topic + ":" + str(params['subject_weight']) + "), "
     if all([original, float(params['initial_weight']) != 0]):
         if float(params['initial_weight']) == 1:
             response += original + ", "
@@ -370,7 +373,7 @@ def build_body(description,subject,original):
 # Get and save the Stable Diffusion-generated picture
 def get_SD_pictures(description):
 
-    global params, initial_string
+    global params, subject, description, initial_string
 
     if params['manage_VRAM']:
         give_VRAM_priority('SD')
@@ -396,7 +399,7 @@ def get_SD_pictures(description):
         triggered_array = [0] * len(tpatterns['pairs'])
         triggered_array = add_translations(initial_string,triggered_array,tpatterns)
         add_translations(description,triggered_array,tpatterns)
-
+    
     final_positive_prompt = clean_spaces(tag_calculator(clean_spaces(params['prompt_prefix'])) + ", " + build_body(description,subject,initial_string) + tag_calculator(clean_spaces(positive_suffix)))
     final_negative_prompt = clean_spaces(tag_calculator(clean_spaces(params['negative_prompt'])) + ", " + tag_calculator(clean_spaces(negative_suffix)))
 
