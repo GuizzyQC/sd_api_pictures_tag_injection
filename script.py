@@ -46,8 +46,8 @@ params = {
     'subject_weight' : '0',
     'initial_weight' : '0',
     'secondary_negative_prompt' : '',
-    'secondary_positive_prompt' : ''
-
+    'secondary_positive_prompt' : '',
+    'adetailer' : '0'
 }
 
 
@@ -372,6 +372,9 @@ def get_SD_pictures(description):
 
     global params, initial_string
 
+    if subject is None:
+        subject = ''
+
     if params['manage_VRAM']:
         give_VRAM_priority('SD')
 
@@ -399,6 +402,22 @@ def get_SD_pictures(description):
 
     final_positive_prompt = clean_spaces(tag_calculator(clean_spaces(params['prompt_prefix'])) + ", " + build_body(description,subject,initial_string) + tag_calculator(clean_spaces(positive_suffix)))
     final_negative_prompt = clean_spaces(tag_calculator(clean_spaces(params['negative_prompt'])) + ", " + tag_calculator(clean_spaces(negative_suffix)))
+    scripts = {}
+    if params['adetailer']:
+        scripts['ADetailer'] = {
+            "args": [
+                {
+                    "ad_model": "face_yolov8n.pt",
+                    "ad_controlnet_model": "None",
+                    "ad_controlnet_weight": 1
+                },
+                {
+                    "ad_model": "hand_yolov8n.pt",
+                    "ad_controlnet_model": "None",
+                    "ad_controlnet_weight": 1
+                }
+            ]
+        }
 
     payload = {
         "prompt": final_positive_prompt,
@@ -414,6 +433,7 @@ def get_SD_pictures(description):
         "width": params['width'],
         "height": params['height'],
         "restore_faces": params['restore_faces'],
+        "alwayson_scripts": scripts,
         "override_settings_restore_afterwards": True
     }
 
@@ -460,8 +480,11 @@ def output_modifier(string, state):
 
     global picture_response, params, character
     
-    character = state['character_menu']
-
+    try:
+        character = state['character_menu']
+    except Exception as e:
+        print(f"Error loading character menu: {str(e)}")
+        
     if not picture_response:
         return string
 
@@ -575,6 +598,7 @@ def ui():
                 translations = gr.Checkbox(value=params['translations'], label='Activate SD translations')
                 tag_processing = gr.Checkbox(value=params['processing'], label='Advanced tag processing')
                 disable_loras = gr.Checkbox(value=params['disable_loras'], label='Disable SD LORAs')
+                adetailer = gr.Checkbox(value=params['adetailer'], label='Enable ADetailer')
             force_pic = gr.Button("Force the picture response")
             suppr_pic = gr.Button("Suppress the picture response")
         with gr.Row():
@@ -638,6 +662,7 @@ def ui():
     tag_processing.change(lambda x: params.update({"processing": x}), tag_processing, None)
     tag_processing.change(lambda x: disable_loras.update(visible=params["processing"]), tag_processing, disable_loras)
     disable_loras.change(lambda x: params.update({"disable_loras": x}), disable_loras, None)
+    adetailer.change(lambda x: params.update({"adetailer": x}), adetailer, None)
 
     update_checkpoints.click(get_checkpoints, None, checkpoint)
     checkpoint.change(lambda x: a1111Status.update({"sd_checkpoint": x}), checkpoint, None)
