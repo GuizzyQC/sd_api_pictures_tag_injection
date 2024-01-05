@@ -371,7 +371,10 @@ def build_body(description,subject,original):
 def get_SD_pictures(description):
 
     global params, initial_string
-
+    
+    if subject is None:
+        subject = ''
+    
     if params['manage_VRAM']:
         give_VRAM_priority('SD')
 
