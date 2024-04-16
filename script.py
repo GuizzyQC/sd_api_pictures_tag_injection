@@ -374,6 +374,8 @@ def get_SD_pictures(description):
 
     global subject, params, initial_string
     
+    subject = None
+    
     if subject is None:
         subject = ''
     
