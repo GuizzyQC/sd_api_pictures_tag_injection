@@ -98,6 +98,9 @@ checkpoint_list = []
 samplers = ['DDIM', 'DPM++ 2M Karras']  # TODO: get the availible samplers with http://{address}}/sdapi/v1/samplers
 SD_models = ['NeverEndingDream']  # TODO: get with http://{address}}/sdapi/v1/sd-models and allow user to select
 initial_string = ""
+description = ""
+subject = ""
+topic = ""
 
 picture_response = False  # specifies if the next model response should appear as a picture
 
@@ -349,8 +352,12 @@ def tag_calculator(affix):
                 string_tags += "<lora:" + tag.text + ":" + str(round(tag.weight,1)) + ">, "
 
     return string_tags
-
-def build_body(description,subject,original):
+def safe_float_conversion(value, default=0.0):
+    try:
+        return float(value)
+    except ValueError:
+        return default
+def build_body(description,topic,original):
     response = ""
     if all([description, float(params['description_weight']) != 0]):
         if float(params['description_weight']) == 1:
@@ -359,10 +366,10 @@ def build_body(description,subject,original):
             response = "(" + description + ":" + str(params['description_weight']) + "), "
     if all([subject, float(params['subject_weight']) != 0]):
         if float(params['subject_weight']) == 1:
-            response += subject + ", "
+            response += topic + ", "
         else:
-            response += "(" + subject + ":" + str(params['subject_weight']) + "), "
-    if all([original, float(params['initial_weight']) != 0]):
+            response += "(" + topic + ":" + str(params['subject_weight']) + "), "
+    if all([original, safe_float_conversion(params['initial_weight']) != 0]):
         if float(params['initial_weight']) == 1:
             response += original + ", "
         else:
@@ -374,8 +381,7 @@ def get_SD_pictures(description):
 
     global subject, params, initial_string
     
-    subject = None
-    
+
     if subject is None:
         subject = ''
     
