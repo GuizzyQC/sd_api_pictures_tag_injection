@@ -432,7 +432,7 @@ def get_SD_pictures(description):
 
     print(f'Prompting the image generator via the API on {params["address"]}...')
     response = requests.post(url=f'{params["address"]}/sdapi/v1/txt2img', json=payload)
-    response.raise_for_status()
+#    response.raise_for_status()
     r = response.json()
 
     visible_result = ""
@@ -666,8 +666,8 @@ def ui():
     enable_hr.change(lambda x: params.update({"enable_hr": x}), enable_hr, None)
     enable_hr.change(lambda x: hr_options.update(visible=params["enable_hr"]), enable_hr, hr_options)
     tag_processing.change(lambda x: params.update({"processing": x}), tag_processing, None)
-    tag_processing.change(lambda x: disable_loras.update(visible=params["processing"]), tag_processing, disable_loras)
-    disable_loras.change(lambda x: params.update({"disable_loras": x}), disable_loras, None)
+#    tag_processing.change(lambda x: disable_loras.update(visible=params["processing"]), tag_processing, disable_loras)
+#    disable_loras.change(lambda x: params.update({"disable_loras": x}), disable_loras, None)
 
     update_checkpoints.click(get_checkpoints, None, checkpoint)
     checkpoint.change(lambda x: a1111Status.update({"sd_checkpoint": x}), checkpoint, None)
