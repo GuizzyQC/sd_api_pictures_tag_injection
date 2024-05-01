@@ -11,6 +11,7 @@ import requests
 import torch
 import json
 import yaml
+import html
 from modules import shared
 from modules.models import reload_model, unload_model
 from PIL import Image
@@ -47,7 +48,7 @@ params = {
     'initial_weight' : '0',
     'secondary_negative_prompt' : '',
     'secondary_positive_prompt' : '',
-    'adetailer' : '0'
+    'showDescription': True
 }
 
 
@@ -89,7 +90,7 @@ characterfocus = ""
 positive_suffix = ""
 negative_suffix = ""
 a1111Status = {
-    'sd_checkpoint' : '', 
+    'sd_checkpoint' : '',
     'checkpoint_positive_prompt' : '',
     'checkpoint_negative_prompt' : ''
     }
@@ -97,6 +98,9 @@ checkpoint_list = []
 samplers = ['DDIM', 'DPM++ 2M Karras']  # TODO: get the availible samplers with http://{address}}/sdapi/v1/samplers
 SD_models = ['NeverEndingDream']  # TODO: get with http://{address}}/sdapi/v1/sd-models and allow user to select
 initial_string = ""
+description = ""
+subject = ""
+topic = ""
 
 picture_response = False  # specifies if the next model response should appear as a picture
 
@@ -150,6 +154,7 @@ def request_generation(case,string):
         string = "Describe in vivid detail as if you were describing to a blind person the following: " + subject.strip()
     elif case == 3:
         toggle_generation(True)
+        characterfocus = True
         string = "Describe in vivid detail as if you were describing to a blind person your appearance, your current state of clothing, your surroundings and what you are doing right now."
     return string
 
@@ -163,7 +168,7 @@ def string_evaluation(string):
         string = string.lower()
         if "of" in string:
             if any(target in string for target in subjects): # the focus of the image should be on the sending character
-                input_type = 1 
+                input_type = 1
             else:
                 input_type = 2
         else:
@@ -220,7 +225,7 @@ def create_suffix():
             positive_suffix = a1111Status['checkpoint_positive_prompt']
             negative_suffix = a1111Status['checkpoint_negative_prompt']
     if characterfocus and character != 'None':
-        positive_suffix = data['sd_tags_positive'] if 'sd_tags_positive' in data else "" 
+        positive_suffix = data['sd_tags_positive'] if 'sd_tags_positive' in data else ""
         negative_suffix = data['sd_tags_negative'] if 'sd_tags_negative' in data else ""
         if params['secondary_prompt']:
             positive_suffix = params['secondary_positive_prompt'] + ", " + data['sd_tags_positive'] if 'sd_tags_positive' in data else params['secondary_positive_prompt']
@@ -247,7 +252,7 @@ def clean_spaces(text): # Cleanup double spaces, double commas, and comma-space-
                 text = text[::-1].replace(",","",1)[::-1]
     except IndexError: # IndexError is expected if string is empty or becomes empty during cleanup and can be safely ignored
         pass
-    except: 
+    except:
         print("Error cleaning up text")
     return text
 
@@ -340,15 +345,19 @@ def tag_calculator(affix):
                 string_tags += tag.text + ", "
             else:
                 if tag.weight > 0:
-                    string_tags += "(" + tag.text + ":" + str(round(tag.weight,1)) + "), " 
+                    string_tags += "(" + tag.text + ":" + str(round(tag.weight,1)) + "), "
 
         if not params['disable_loras']:
             for tag in loras:
                 string_tags += "<lora:" + tag.text + ":" + str(round(tag.weight,1)) + ">, "
 
     return string_tags
-
-def build_body(description,subject,original):
+def safe_float_conversion(value, default=0.0):
+    try:
+        return float(value)
+    except ValueError:
+        return default
+def build_body(description,topic,original):
     response = ""
     if all([description, float(params['description_weight']) != 0]):
         if float(params['description_weight']) == 1:
@@ -357,10 +366,10 @@ def build_body(description,subject,original):
             response = "(" + description + ":" + str(params['description_weight']) + "), "
     if all([subject, float(params['subject_weight']) != 0]):
         if float(params['subject_weight']) == 1:
-            response += subject + ", "
+            response += topic + ", "
         else:
-            response += "(" + subject + ":" + str(params['subject_weight']) + "), "
-    if all([original, float(params['initial_weight']) != 0]):
+            response += "(" + topic + ":" + str(params['subject_weight']) + "), "
+    if all([original, safe_float_conversion(params['initial_weight']) != 0]):
         if float(params['initial_weight']) == 1:
             response += original + ", "
         else:
@@ -370,11 +379,12 @@ def build_body(description,subject,original):
 # Get and save the Stable Diffusion-generated picture
 def get_SD_pictures(description):
 
-    global params, initial_string
+    global subject, params, initial_string
+    
 
     if subject is None:
         subject = ''
-
+    
     if params['manage_VRAM']:
         give_VRAM_priority('SD')
 
@@ -400,24 +410,8 @@ def get_SD_pictures(description):
         triggered_array = add_translations(initial_string,triggered_array,tpatterns)
         add_translations(description,triggered_array,tpatterns)
 
-    final_positive_prompt = clean_spaces(tag_calculator(clean_spaces(params['prompt_prefix'])) + ", " + build_body(description,subject,initial_string) + tag_calculator(clean_spaces(positive_suffix)))
-    final_negative_prompt = clean_spaces(tag_calculator(clean_spaces(params['negative_prompt'])) + ", " + tag_calculator(clean_spaces(negative_suffix)))
-    scripts = {}
-    if params['adetailer']:
-        scripts['ADetailer'] = {
-            "args": [
-                {
-                    "ad_model": "face_yolov8n.pt",
-                    "ad_controlnet_model": "None",
-                    "ad_controlnet_weight": 1
-                },
-                {
-                    "ad_model": "hand_yolov8n.pt",
-                    "ad_controlnet_model": "None",
-                    "ad_controlnet_weight": 1
-                }
-            ]
-        }
+    final_positive_prompt = html.unescape(clean_spaces(tag_calculator(clean_spaces(params['prompt_prefix'])) + ", " + build_body(description,subject,initial_string) + tag_calculator(clean_spaces(positive_suffix))))
+    final_negative_prompt = html.unescape(clean_spaces(tag_calculator(clean_spaces(params['negative_prompt'])) + ", " + tag_calculator(clean_spaces(negative_suffix))))
 
     payload = {
         "prompt": final_positive_prompt,
@@ -433,13 +427,12 @@ def get_SD_pictures(description):
         "width": params['width'],
         "height": params['height'],
         "restore_faces": params['restore_faces'],
-        "alwayson_scripts": scripts,
         "override_settings_restore_afterwards": True
     }
 
     print(f'Prompting the image generator via the API on {params["address"]}...')
     response = requests.post(url=f'{params["address"]}/sdapi/v1/txt2img', json=payload)
-    response.raise_for_status()
+#    response.raise_for_status()
     r = response.json()
 
     visible_result = ""
@@ -480,11 +473,8 @@ def output_modifier(string, state):
 
     global picture_response, params, character
     
-    try:
-        character = state['character_menu']
-    except Exception as e:
-        print(f"Error loading character menu: {str(e)}")
-        
+    character = state.get('character_menu','None')
+
     if not picture_response:
         return string
 
@@ -505,7 +495,10 @@ def output_modifier(string, state):
     else:
         text = string
 
-    string = get_SD_pictures(string) + "\n" + text
+    string = get_SD_pictures(string)
+    
+    if params['showDescription']:
+        string = string + "\n" + text
 
     return string
 
@@ -582,6 +575,18 @@ def load_checkpoint(checkpoint):
             a1111Status['checkpoint_negative_prompt'] = pair['negative_prompt']
     requests.post(url=f'{params["address"]}/sdapi/v1/options', json=payload)
 
+def get_samplers():
+    global params
+    
+    try:
+        response = requests.get(url=f'{params["address"]}/sdapi/v1/samplers')
+        response.raise_for_status()
+        samplers = [x["name"] for x in response.json()]
+    except:
+        samplers = []
+
+    return gr.update(choices=samplers)
+
 def ui():
 
     # Gradio elements
@@ -590,7 +595,7 @@ def ui():
         with gr.Row():
             address = gr.Textbox(placeholder=params['address'], value=params['address'], label='Auto1111\'s WebUI address')
             modes_list = ["Manual", "Immersive/Interactive", "Picturebook/Adventure"]
-            mode = gr.Dropdown(modes_list, value=modes_list[params['mode']], label="Mode of operation", type="index")
+            mode = gr.Dropdown(modes_list, value=modes_list[params['mode']], allow_custom_value=True, label="Mode of operation", type="index")
             with gr.Column(scale=1, min_width=300):
                 manage_VRAM = gr.Checkbox(value=params['manage_VRAM'], label='Manage VRAM')
                 save_img = gr.Checkbox(value=params['save_img'], label='Keep original images and use them in chat')
@@ -598,11 +603,10 @@ def ui():
                 translations = gr.Checkbox(value=params['translations'], label='Activate SD translations')
                 tag_processing = gr.Checkbox(value=params['processing'], label='Advanced tag processing')
                 disable_loras = gr.Checkbox(value=params['disable_loras'], label='Disable SD LORAs')
-                adetailer = gr.Checkbox(value=params['adetailer'], label='Enable ADetailer')
             force_pic = gr.Button("Force the picture response")
             suppr_pic = gr.Button("Suppress the picture response")
         with gr.Row():
-            checkpoint = gr.Dropdown(checkpoint_list, value=a1111Status['sd_checkpoint'], label="Checkpoint", type="value")
+            checkpoint = gr.Dropdown(checkpoint_list, value=a1111Status['sd_checkpoint'], allow_custom_value=True, label="Checkpoint", type="value")
             checkpoint_prompt = gr.Checkbox(value=params['checkpoint_prompt'], label='Add checkpoint tags in prompt')
             update_checkpoints = gr.Button("Get list of checkpoints")
 
@@ -624,18 +628,20 @@ def ui():
                     width = gr.Slider(64, 2048, value=params['width'], step=64, label='Width')
                     height = gr.Slider(64, 2048, value=params['height'], step=64, label='Height')
                 with gr.Column():
-                    sampler_name = gr.Textbox(placeholder=params['sampler_name'], value=params['sampler_name'], label='Sampling method', elem_id="sampler_box")
+                    with gr.Row():
+                        sampler_name = gr.Dropdown(value=params['sampler_name'],allow_custom_value=True,label='Sampling method', elem_id="sampler_box")
+                        update_samplers = gr.Button("Get samplers")
                     steps = gr.Slider(1, 150, value=params['steps'], step=1, label="Sampling steps")
             with gr.Row():
                 seed = gr.Number(label="Seed", value=params['seed'], elem_id="seed_box")
                 cfg_scale = gr.Number(label="CFG Scale", value=params['cfg_scale'], elem_id="cfg_box")
                 with gr.Column() as hr_options:
                     restore_faces = gr.Checkbox(value=params['restore_faces'], label='Restore faces')
-                    enable_hr = gr.Checkbox(value=params['enable_hr'], label='Hires. fix')                    
+                    enable_hr = gr.Checkbox(value=params['enable_hr'], label='Hires. fix')
             with gr.Row(visible=params['enable_hr'], elem_classes="hires_opts") as hr_options:
                     hr_scale = gr.Slider(1, 4, value=params['hr_scale'], step=0.1, label='Upscale by')
                     denoising_strength = gr.Slider(0, 1, value=params['denoising_strength'], step=0.01, label='Denoising strength')
-                    hr_upscaler = gr.Textbox(placeholder=params['hr_upscaler'], value=params['hr_upscaler'], label='Upscaler')                    
+                    hr_upscaler = gr.Textbox(placeholder=params['hr_upscaler'], value=params['hr_upscaler'], label='Upscaler')
 
     # Event functions to update the parameters in the backend
     address.change(lambda x: params.update({"address": filter_address(x)}), address, None)
@@ -660,9 +666,8 @@ def ui():
     enable_hr.change(lambda x: params.update({"enable_hr": x}), enable_hr, None)
     enable_hr.change(lambda x: hr_options.update(visible=params["enable_hr"]), enable_hr, hr_options)
     tag_processing.change(lambda x: params.update({"processing": x}), tag_processing, None)
-    tag_processing.change(lambda x: disable_loras.update(visible=params["processing"]), tag_processing, disable_loras)
-    disable_loras.change(lambda x: params.update({"disable_loras": x}), disable_loras, None)
-    adetailer.change(lambda x: params.update({"adetailer": x}), adetailer, None)
+#    tag_processing.change(lambda x: disable_loras.update(visible=params["processing"]), tag_processing, disable_loras)
+#    disable_loras.change(lambda x: params.update({"disable_loras": x}), disable_loras, None)
 
     update_checkpoints.click(get_checkpoints, None, checkpoint)
     checkpoint.change(lambda x: a1111Status.update({"sd_checkpoint": x}), checkpoint, None)
@@ -674,6 +679,7 @@ def ui():
     secondary_positive_prompt.change(lambda x: params.update({"secondary_positive_prompt": x}), secondary_positive_prompt, None)
     secondary_negative_prompt.change(lambda x: params.update({"secondary_negative_prompt": x}), secondary_negative_prompt, None)
 
+    update_samplers.click(get_samplers, None, sampler_name)
     sampler_name.change(lambda x: params.update({"sampler_name": x}), sampler_name, None)
     steps.change(lambda x: params.update({"steps": x}), steps, None)
     seed.change(lambda x: params.update({"seed": x}), seed, None)
